@@ -77,8 +77,8 @@ def main():
         audio_folder_link = row[5].strip() if len(row) > 5 else ""
         status = row[8].strip().lower() if len(row) > 8 else ""
 
-        print(f"\n🔍 Row {idx} — Status: {status or '[empty]'}")
-        print(f"   🗓 Date         : {meeting_date or '[MISSING]'}")
+        print(f"\n🔍 Row {idx} — Status  : {status or '[empty]'}")
+        print(f"   📅 Date         : {meeting_date or '[MISSING]'}")
         print(f"   🏢 Company Name : {company_name or '[MISSING]'}")
         print(f"   🌐 Website Link : {website_url or '[MISSING]'}")
         print(f"   🎧 Audio Folder : {audio_folder_link or '[MISSING]'}")
