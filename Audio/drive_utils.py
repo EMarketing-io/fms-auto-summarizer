@@ -14,9 +14,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 # Load environment variables
 load_dotenv()
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-CREDENTIALS_PATH = os.path.join(BASE_DIR, "credentials.json") # Path to Google Service Account Credentials JSON file
-TOKEN_PATH = os.path.join(BASE_DIR, "token.pickle") # Path to store OAuth token
+CREDENTIALS_PATH = os.getenv("GOOGLE_OAUTH_FILE")
+TOKEN_PATH = os.getenv("GOOGLE_TOKEN_FILE")
 
 
 # Function to authenticate with OAuth2
@@ -36,7 +35,7 @@ def authenticate_with_oauth():
         else:
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
             creds = flow.run_local_server(port=0)
-        
+
         # Save the credentials for the next run
         with open(TOKEN_PATH, "wb") as token:
             pickle.dump(creds, token)
@@ -61,7 +60,7 @@ def download_audio_from_drive(file_id, api_key=None):
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".m4a")
     downloader = MediaIoBaseDownload(temp_file, request)
     done = False
-    
+
     # Download the audio file in chunks
     while not done:
         status, done = downloader.next_chunk()
@@ -72,11 +71,13 @@ def download_audio_from_drive(file_id, api_key=None):
 
 
 # Function to upload a DOCX file to Google Drive
-def upload_file_to_drive_in_memory(file_data, folder_id, api_key=None, final_name="Zoom Call Notes.docx"):
+def upload_file_to_drive_in_memory(
+    file_data, folder_id, api_key=None, final_name="Zoom Call Notes.docx"
+):
     service = get_drive_service(api_key)
     file_metadata = {"name": final_name, "parents": [folder_id]}
     file_stream = io.BytesIO(file_data)
-    
+
     # Set the MIME type for DOCX files
     media = MediaIoBaseUpload(
         file_stream,

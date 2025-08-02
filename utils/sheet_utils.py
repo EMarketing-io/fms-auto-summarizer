@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SHEET_ID = os.getenv("GOOGLE_SHEET") # Google Sheet ID
-CREDENTIALS_PATH = os.getenv("GOOGLE_SERVICE_ACCOUNT") # Path to Google Service Account Credentials JSON file
+SHEET_ID = os.getenv("GOOGLE_SHEET_ID") # Google Sheet ID
+CREDENTIALS_PATH = os.getenv("GOOGLE_SA_FILE") # Path to Google Service Account Credentials JSON file
 
 
 # Function to get all rows from the Google Sheet

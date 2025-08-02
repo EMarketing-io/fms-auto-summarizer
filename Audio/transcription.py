@@ -1,7 +1,7 @@
 import openai
-from Audio.config import OPENAI_API_KEY
+from audio.config import OPENAI_KEY
 
-openai.api_key = OPENAI_API_KEY
+openai.api_key = OPENAI_KEY
 
 
 # Function to transcribe audio using OpenAI Whisper API

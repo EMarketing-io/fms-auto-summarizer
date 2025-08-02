@@ -5,7 +5,7 @@ import re
 from dotenv import load_dotenv
 
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("OPENAI_KEY")
 
 
 # Function to summarize website content using OpenAI

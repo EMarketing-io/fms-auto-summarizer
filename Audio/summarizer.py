@@ -1,5 +1,5 @@
 import openai
-from Audio.utils import extract_json_block
+from audio.utils import extract_json_block
 
 
 # Function to generate summary from transcript text

@@ -10,8 +10,8 @@ __pycache__/
 # Environment & Configuration
 .env
 token.pickle
-credentials.json
-service.json
+google_oauth_credentials.json
+google_service_account.json
 
 # Temporary files
 *.tmp

@@ -7,26 +7,26 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 # Sheet Utilities
-from sheet_utils import update_sheet_with_links
+from utils.sheet_utils import update_sheet_with_links
 
 # Website Processing Modules
-from Website.extract import extract_text_from_url
-from Website.summarize import summarize_with_openai
-from Website.document import create_docx_in_memory as create_website_doc
-from Website.drive import upload_docx_to_gdrive
+from website.extract import extract_text_from_url
+from website.summarize import summarize_with_openai
+from website.document import create_docx_in_memory as create_website_doc
+from website.drive import upload_docx_to_gdrive
 
 # Audio Processing Modules
-from Audio.transcription import transcribe_audio
-from Audio.summarizer import generate_summary
-from Audio.doc_generator import generate_docx as create_audio_doc
-from Audio.drive_utils import (
+from audio.transcription import transcribe_audio
+from audio.summarizer import generate_summary
+from audio.doc_generator import generate_docx as create_audio_doc
+from audio.drive_utils import (
     upload_file_to_drive_in_memory,
     download_audio_from_drive,
     find_audio_file_in_folder,
     find_folder_id_by_partial_name,
 )
-from Audio.config import GOOGLE_DRIVE_FOLDER_ID, GOOGLE_DRIVE_API_KEY
-from Audio.utils import split_audio_file
+from audio.config import AUDIO_DRIVE_FOLDER_ID, GDRIVE_API_KEY
+from audio.utils import split_audio_file
 
 # Load environment variables
 load_dotenv()
@@ -53,10 +53,10 @@ def get_all_rows():
         "https://www.googleapis.com/auth/drive",
     ]
     creds = ServiceAccountCredentials.from_json_keyfile_name(
-        os.getenv("GOOGLE_SERVICE_ACCOUNT"), scope
+        os.getenv("GOOGLE_SA_FILE"), scope
     )
     client = gspread.authorize(creds)
-    sheet = client.open_by_key(os.getenv("GOOGLE_SHEET")).sheet1
+    sheet = client.open_by_key(os.getenv("GOOGLE_SHEET_ID")).sheet1
     return sheet.get_all_values(), sheet
 
 
@@ -91,26 +91,32 @@ def main():
         # Validate required fields
         if not audio_folder_link:
             parent_drive_folder = os.getenv("AUDIO_PARENT_FOLDER_ID")
-            folder_id = find_folder_id_by_partial_name(company_name, parent_drive_folder, api_key=GOOGLE_DRIVE_API_KEY)
-            
+            folder_id = find_folder_id_by_partial_name(
+                company_name, parent_drive_folder, api_key=GDRIVE_API_KEY
+            )
+
             # Auto-fill audio folder link if missing
             if folder_id:
-                audio_folder_link = (f"https://drive.google.com/drive/folders/{folder_id}?usp=sharing")
+                audio_folder_link = (
+                    f"https://drive.google.com/drive/folders/{folder_id}?usp=sharing"
+                )
                 sheet.update_cell(idx, 6, audio_folder_link)
             else:
                 print(f"❌ Could not auto-fill Audio Folder Link for: {company_name}")
                 print(f"⛔ Skipping Row {idx} — Required audio folder is missing.")
                 continue
         # Check if all required fields are present
-        if (not meeting_date
+        if (
+            not meeting_date
             or not company_name
             or not website_url
-            or not audio_folder_link):
+            or not audio_folder_link
+        ):
             print(f"⛔ Skipping Row {idx} — One or more required fields are missing.")
             continue
 
         print(f"✅ Row {idx} passed validation. Beginning summarization...")
-        
+
         # Prepare filenames and results
         website_filename = f"{company_name} Website Summary.docx"
         audio_filename = f"{company_name} Meeting Notes.docx"
@@ -124,7 +130,9 @@ def main():
             summary = summarize_with_openai(raw_text)
             doc_stream = create_website_doc(summary, f"{company_name} Website Summary")
             drive_file_id = upload_docx_to_gdrive(doc_stream, website_filename)
-            website_link_result = (f"https://drive.google.com/file/d/{drive_file_id}/view")
+            website_link_result = (
+                f"https://drive.google.com/file/d/{drive_file_id}/view"
+            )
             print(f"✅ Website uploaded: {website_link_result}")
         except Exception as e:
             print(f"❌ Website processing failed: {e}")
@@ -136,12 +144,14 @@ def main():
             if not folder_id:
                 raise Exception("Invalid or missing folder ID.")
 
-            file_id = find_audio_file_in_folder(folder_id, extension=".m4a", api_key=GOOGLE_DRIVE_API_KEY)
+            file_id = find_audio_file_in_folder(
+                folder_id, extension=".m4a", api_key=GDRIVE_API_KEY
+            )
             if not file_id:
                 raise Exception("No .m4a file found in folder.")
 
             print("🎙️ Transcribing and summarizing audio...")
-            audio_path = download_audio_from_drive(file_id, api_key=GOOGLE_DRIVE_API_KEY)
+            audio_path = download_audio_from_drive(file_id, api_key=GDRIVE_API_KEY)
             transcript = ""
             audio_size_bytes = os.path.getsize(audio_path)
 
@@ -150,7 +160,9 @@ def main():
                 print("🎙️ Transcribing with OpenAI Whisper API (single file)...")
                 transcript = transcribe_audio(audio_path)
             else:
-                print(f"📦 Audio is {round(audio_size_bytes / 1024 / 1024, 2)}MB — splitting for transcription.")
+                print(
+                    f"📦 Audio is {round(audio_size_bytes / 1024 / 1024, 2)}MB — splitting for transcription."
+                )
                 chunks = split_audio_file(audio_path)
                 all_transcripts = []
 
@@ -169,15 +181,17 @@ def main():
             docx_file = create_audio_doc(summary_data, company_name, meeting_date)
             file_id_uploaded = upload_file_to_drive_in_memory(
                 docx_file,
-                folder_id=GOOGLE_DRIVE_FOLDER_ID,
+                folder_id=AUDIO_DRIVE_FOLDER_ID,
                 final_name=audio_filename,
             )
-            audio_link_result = (f"https://drive.google.com/file/d/{file_id_uploaded}/view")
+            audio_link_result = (
+                f"https://drive.google.com/file/d/{file_id_uploaded}/view"
+            )
             os.remove(audio_path)
             print(f"✅ Audio uploaded: {audio_link_result}")
         except Exception as e:
             print(f"❌ Audio processing failed: {e}")
-            
+
         # Update Google Sheet with results
         if website_link_result or audio_link_result:
             update_sheet_with_links(

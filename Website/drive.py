@@ -12,35 +12,43 @@ from googleapiclient.http import MediaInMemoryUpload
 # Load environment variables
 load_dotenv()
 
-FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID") # Google Drive Folder ID
-CLIENT_SECRETS_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS") # Path to Google Service Account Credentials JSON file
-SCOPES = ["https://www.googleapis.com/auth/drive.file"] # Scope for file operations in Google Drive
+CREDENTIALS_PATH = os.getenv("GOOGLE_OAUTH_FILE")
+TOKEN_PATH = os.getenv("GOOGLE_TOKEN_FILE")
+FOLDER_ID = os.getenv("WEBSITE_DRIVE_FOLDER_ID")  # Google Drive Folder ID
+CLIENT_SECRETS_FILE = os.getenv(
+    "GOOGLE_OAUTH_FILE"
+)  # Path to Google Service Account Credentials JSON file
+SCOPES = [
+    "https://www.googleapis.com/auth/drive.file"
+]  # Scope for file operations in Google Drive
 
 
 # Function to authenticate with Google Drive using OAuth2
 def authenticate_google_drive():
     creds = None
-    
+
     # Load existing token if available
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
+    if TOKEN_PATH and os.path.exists(TOKEN_PATH):
+        with open(TOKEN_PATH, "rb") as token:
             creds = pickle.load(token)
-    
+
     # If no valid credentials, prompt for login
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                CLIENT_SECRETS_FILE, SCOPES
-            )
+            if not CREDENTIALS_PATH:
+                raise ValueError("⚠️ GOOGLE_OAUTH_FILE not set in .env")
+            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
             creds = flow.run_local_server(port=0)
 
-        with open("token.pickle", "wb") as token:
-            pickle.dump(creds, token)
+        # Save token for reuse
+        if TOKEN_PATH:
+            with open(TOKEN_PATH, "wb") as token:
+                pickle.dump(creds, token)
 
-    service = build("drive", "v3", credentials=creds)
-    return service
+    # Build and return Drive service
+    return build("drive", "v3", credentials=creds)
 
 
 # Function to upload a DOCX file to Google Drive
