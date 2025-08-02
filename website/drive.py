@@ -1,78 +1,78 @@
-# Standard Libraries
+# 📦 Standard Libraries
 import os
 import pickle
 
-# Third-Party Libraries
+# 🌐 Third-Party Libraries
 from dotenv import load_dotenv
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaInMemoryUpload
 
-# Load environment variables
+# 🔐 Load environment variables from .env
 load_dotenv()
 
-CREDENTIALS_PATH = os.getenv("GOOGLE_OAUTH_FILE")
-TOKEN_PATH = os.getenv("GOOGLE_TOKEN_FILE")
-FOLDER_ID = os.getenv("WEBSITE_DRIVE_FOLDER_ID")  # Google Drive Folder ID
-CLIENT_SECRETS_FILE = os.getenv(
-    "GOOGLE_OAUTH_FILE"
-)  # Path to Google Service Account Credentials JSON file
-SCOPES = [
-    "https://www.googleapis.com/auth/drive.file"
-]  # Scope for file operations in Google Drive
+# 🌐 OAuth credentials and Drive target folder configuration
+CREDENTIALS_PATH = os.getenv("GOOGLE_OAUTH_FILE")               # Path to OAuth client secrets
+TOKEN_PATH = os.getenv("GOOGLE_TOKEN_FILE")                     # Path to store/load user session token
+FOLDER_ID = os.getenv("WEBSITE_DRIVE_FOLDER_ID")                # Destination Drive folder for uploads
+CLIENT_SECRETS_FILE = CREDENTIALS_PATH                          # Redundant but kept for clarity
+SCOPES = ["https://www.googleapis.com/auth/drive.file"]         # Scope for file upload access
 
 
-# Function to authenticate with Google Drive using OAuth2
+# 🔐 Authenticate and return a Google Drive API client using OAuth 2.0
 def authenticate_google_drive():
     creds = None
 
-    # Load existing token if available
+    # ✅ Load previously saved token (if available and valid)
     if TOKEN_PATH and os.path.exists(TOKEN_PATH):
         with open(TOKEN_PATH, "rb") as token:
             creds = pickle.load(token)
 
-    # If no valid credentials, prompt for login
+    # 🔄 Refresh or prompt user login if token is missing or invalid
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
+        
         else:
             if not CREDENTIALS_PATH:
                 raise ValueError("⚠️ GOOGLE_OAUTH_FILE not set in .env")
+            
+            # Launch browser-based login flow
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
             creds = flow.run_local_server(port=0)
 
-        # Save token for reuse
+        # 💾 Save new token for future use
         if TOKEN_PATH:
             with open(TOKEN_PATH, "wb") as token:
                 pickle.dump(creds, token)
 
-    # Build and return Drive service
+    # 📡 Return an authorized Drive client
     return build("drive", "v3", credentials=creds)
 
 
-# Function to upload a DOCX file to Google Drive
+# 📤 Upload a DOCX file (in memory) to the configured Google Drive folder
 def upload_docx_to_gdrive(docx_stream, filename):
-    service = authenticate_google_drive()
+    service = authenticate_google_drive()   # Ensure authenticated session
 
-    # Prepare the file metadata
+    # 📄 Metadata for the file to be created in Drive
     file_metadata = {
         "name": filename,
         "parents": [FOLDER_ID],
-        "mimeType": "application/vnd.google-apps.document",
+        "mimeType": "application/vnd.google-apps.document",     # Create as a Google Doc
     }
 
     docx_stream.seek(0)
     docx_content = docx_stream.read()
 
-    # Create a MediaInMemoryUpload object
+    # 🗃️ Prepare the file content for upload
     media = MediaInMemoryUpload(
         docx_content,
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         resumable=True,
     )
 
-    # Upload the file to Google Drive
+    # 🚀 Upload the file and return its ID
     uploaded = (
         service.files()
         .create(body=file_metadata, media_body=media, fields="id, name")

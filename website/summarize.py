@@ -4,12 +4,15 @@ import os
 import re
 from dotenv import load_dotenv
 
+# 🔐 Load environment variables from .env (including OpenAI key)
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_KEY")
 
 
-# Function to summarize website content using OpenAI
+# 📊 Summarizes raw website content into a structured JSON using OpenAI GPT
 def summarize_with_openai(webpage_text):
+    
+    # 📜 Construct the detailed prompt with exact format instructions
     prompt = f"""
 You are a professional business analyst. Analyze the following website content and extract comprehensive, detailed business information in JSON format.
 
@@ -58,7 +61,7 @@ Use this exact structure:
 Analyze this content:
 \"\"\"{webpage_text}\"\"\"
 """
-    # Call OpenAI API to generate summary
+    # 🤖 Send request to GPT with structured prompt
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4.1-2025-04-14",
@@ -66,18 +69,18 @@ Analyze this content:
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.3, # Lower temperature for more deterministic output
+            temperature=0.3,  # Low temp for consistent, deterministic structure
         )
 
-        # Extract the JSON response
+        # 🧾 Extract response text
         raw_text = response["choices"][0]["message"]["content"].strip()
         raw_text = raw_text.strip("`").strip()
 
-        # Clean up the raw text to ensure valid JSON
+        # 🔍 Remove any "json" label prefix if present
         if raw_text.lower().startswith("json"):
             raw_text = raw_text[4:].strip()
 
-        # Replace common typographic quotes with standard quotes
+       # 🔧 Normalize problematic characters (smart quotes, dashes, etc.)
         raw_text = (
             raw_text.replace("“", '"')
             .replace("”", '"')
@@ -87,18 +90,18 @@ Analyze this content:
             .replace("—", "-")
         )
 
-        # Extract the JSON block using regex
+        # 🧠 Extract valid JSON block using regex
         match = re.search(r"{.*}", raw_text, re.DOTALL)
         json_text = match.group(0) if match else raw_text
 
         return json.loads(json_text)
 
-    # Handle JSON parsing errors
+    # ❌ Handle failures in GPT response or JSON parsing
     except Exception as e:
         print("⚠️ OpenAI JSON parsing failed:", e)
         print("⚠️ Raw output was:\n", raw_text)
         
-        # Return a default structure indicating failure
+        # Return fallback default structure
         return {
             "title": "Summary Unavailable",
             "sections": [
